@@ -1,0 +1,1507 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>After-School Program Survey</title>
+
+<!--
+╔══════════════════════════════════════════════════════════╗
+║              SUPABASE SETUP INSTRUCTIONS                 ║
+╠══════════════════════════════════════════════════════════╣
+║ 1. Go to https://supabase.com → create a free project   ║
+║ 2. Open SQL Editor and run:                              ║
+║                                                          ║
+║   CREATE TABLE survey_responses (                        ║
+║     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,       ║
+║     created_at timestamptz DEFAULT now(),                ║
+║     grade_levels text[],                                 ║
+║     num_children text,                                   ║
+║     package_a_likelihood text,                           ║
+║     package_b_likelihood text,                           ║
+║     package_c_likelihood text,                           ║
+║     bundle_preference text,                              ║
+║     custom_activities text[],                            ║
+║     sibling_discount text,                               ║
+║     comments text,                                       ║
+║     contact_name text,                                   ║
+║     contact_email text,                                  ║
+║     contact_phone text,                                  ║
+║     survey_language text                                 ║
+║   );                                                     ║
+║                                                          ║
+║   ALTER TABLE survey_responses ENABLE ROW LEVEL SECURITY;║
+║   CREATE POLICY "anon insert" ON survey_responses        ║
+║     FOR INSERT WITH CHECK (true);                        ║
+║                                                          ║
+║ 3. Go to Project Settings → API                          ║
+║ 4. Replace the two constants below with your values      ║
+╚══════════════════════════════════════════════════════════╝
+-->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --primary: #1A4FBF;
+  --primary-light: #3B72D9;
+  --secondary: #FF6B6B;
+  --accent: #4ECDC4;
+  --yellow: #FFD93D;
+  --green: #26de81;
+  --bg: #EEF3FB;
+  --card-bg: #FFFFFF;
+  --text: #0F1E3A;
+  --text-muted: #6B7A99;
+  --border: #D0DCF0;
+  --shadow: rgba(26,79,191,0.12);
+  --nav-bg: #FFFFFF;
+}
+[data-theme="dark"] {
+  --bg: #0F0E1A;
+  --card-bg: #1A1830;
+  --text: #EAE8FF;
+  --text-muted: #8A88AA;
+  --border: #2E2B50;
+  --shadow: rgba(0,0,0,0.35);
+  --nav-bg: #1A1830;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Nunito', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  transition: background 0.35s, color 0.35s;
+}
+
+/* ── Header ── */
+.hdr {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  height: 60px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 18px;
+  background: var(--nav-bg);
+  border-bottom: 2px solid var(--border);
+  box-shadow: 0 2px 16px var(--shadow);
+  transition: background 0.35s, border-color 0.35s;
+}
+.hdr-title {
+  font-size: 15px; font-weight: 900;
+  color: var(--primary);
+  letter-spacing: -0.3px;
+}
+.hdr-btns { display: flex; gap: 10px; }
+.icon-btn {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--card-bg);
+  cursor: pointer;
+  font-size: 18px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+  position: relative;
+  color: var(--text);
+}
+.icon-btn:hover { background: var(--primary); border-color: var(--primary); }
+
+/* ── Language dropdown ── */
+.lang-wrap { position: relative; }
+.lang-drop {
+  position: absolute; top: 48px; right: 0;
+  background: var(--card-bg);
+  border: 2px solid var(--border);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 12px 32px var(--shadow);
+  min-width: 170px;
+  display: none;
+  z-index: 300;
+}
+.lang-drop.open { display: block; }
+.lang-opt {
+  padding: 13px 18px;
+  cursor: pointer;
+  font-size: 15px; font-weight: 700;
+  display: flex; align-items: center; gap: 9px;
+  transition: background 0.15s;
+  color: var(--text);
+}
+.lang-opt:hover { background: var(--bg); }
+.lang-opt.active { color: var(--primary); }
+
+/* ── Progress ── */
+.prog-wrap {
+  position: fixed; top: 60px; left: 0; right: 0; z-index: 150;
+  padding: 10px 18px 8px;
+  background: var(--nav-bg);
+  border-bottom: 2px solid var(--border);
+  transition: background 0.35s;
+}
+.prog-track {
+  height: 9px; background: var(--border); border-radius: 5px; overflow: hidden;
+}
+.prog-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  border-radius: 5px;
+  transition: width 0.5s cubic-bezier(0.34,1.56,0.64,1);
+}
+.prog-txt {
+  text-align: center; font-size: 12px; font-weight: 800;
+  color: var(--text-muted); margin-top: 5px; letter-spacing: 0.3px;
+}
+
+/* ── Main area ── */
+.main {
+  padding-top: 120px;
+  padding-bottom: 100px;
+  min-height: 100vh;
+  display: flex; align-items: flex-start; justify-content: center;
+}
+.card-wrap {
+  width: 100%; max-width: 680px;
+  padding: 16px 16px 4px;
+}
+
+/* ── Card ── */
+.card {
+  background: var(--card-bg);
+  border-radius: 28px;
+  padding: 30px 28px;
+  box-shadow: 0 10px 48px var(--shadow);
+  border: 2px solid var(--border);
+  min-height: 400px;
+  display: flex; flex-direction: column;
+  transition: background 0.35s, border-color 0.35s;
+  will-change: transform, opacity;
+}
+
+/* ── Card animations ── */
+@keyframes slideInRight {
+  from { transform: translateX(105%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes slideInLeft {
+  from { transform: translateX(-105%); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+@keyframes slideOutLeft {
+  from { transform: translateX(0);     opacity: 1; }
+  to   { transform: translateX(-105%); opacity: 0; }
+}
+@keyframes slideOutRight {
+  from { transform: translateX(0);    opacity: 1; }
+  to   { transform: translateX(105%); opacity: 0; }
+}
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  15%     { transform: translateX(-9px); }
+  30%     { transform: translateX(9px); }
+  45%     { transform: translateX(-6px); }
+  60%     { transform: translateX(6px); }
+  75%     { transform: translateX(-3px); }
+  90%     { transform: translateX(3px); }
+}
+@keyframes popIn {
+  0%   { transform: scale(0.85); opacity: 0; }
+  60%  { transform: scale(1.04); }
+  100% { transform: scale(1);    opacity: 1; }
+}
+.card.anim-in-right  { animation: slideInRight 0.42s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+.card.anim-in-left   { animation: slideInLeft  0.42s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+.card.anim-out-left  { animation: slideOutLeft  0.28s ease-in forwards; }
+.card.anim-out-right { animation: slideOutRight 0.28s ease-in forwards; }
+.card.shake          { animation: shake 0.5s ease-in-out; }
+
+/* ── Pill labels ── */
+.pill {
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: 20px;
+  font-size: 11px; font-weight: 900;
+  letter-spacing: 0.6px; text-transform: uppercase;
+  margin-bottom: 14px; align-self: flex-start;
+  color: white;
+}
+.pill-a { background: linear-gradient(135deg, #1A4FBF, #3B72D9); }
+.pill-b { background: linear-gradient(135deg, #FF6B6B, #FF9B9B); }
+.pill-c { background: linear-gradient(135deg, #4ECDC4, #6EE7E7); color: #1A6E6A; }
+.pill-d { background: linear-gradient(135deg, #F7B731, #FFD93D); color: #7A5500; }
+.pill-e { background: linear-gradient(135deg, #26de81, #4ECB71); color: #0A4A20; }
+
+/* ── Question text ── */
+.qnum {
+  font-size: 12px; font-weight: 900; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;
+}
+.qtxt {
+  font-size: 22px; font-weight: 900;
+  line-height: 1.45; margin-bottom: 22px;
+  color: var(--text);
+}
+.sub-hint {
+  font-size: 13px; font-weight: 700; color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+/* ── Option buttons ── */
+.opts { display: flex; flex-direction: column; gap: 11px; flex: 1; }
+.opts.two-col {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 11px;
+}
+.opt {
+  padding: 16px 20px;
+  border-radius: 16px;
+  border: 2.5px solid var(--border);
+  background: var(--bg);
+  cursor: pointer;
+  font-family: 'Nunito', sans-serif;
+  font-size: 16px; font-weight: 700;
+  color: var(--text);
+  text-align: left;
+  transition: all 0.18s;
+  display: flex; align-items: center; gap: 10px;
+  position: relative;
+  line-height: 1.3;
+}
+.opt:hover {
+  border-color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 18px var(--shadow);
+}
+.opt.selected {
+  border-color: var(--primary);
+  background: linear-gradient(135deg, rgba(26,79,191,0.09), rgba(78,205,196,0.07));
+  color: var(--primary);
+}
+.opt.selected::after {
+  content: '✓';
+  position: absolute; right: 16px;
+  font-size: 17px; font-weight: 900;
+  color: var(--primary);
+}
+.opt.max-reached:not(.selected) {
+  opacity: 0.45; cursor: not-allowed;
+}
+
+/* ── Scale buttons ── */
+.scale { display: flex; gap: 8px; flex-wrap: nowrap; }
+.scl {
+  flex: 1;
+  padding: 14px 4px;
+  border-radius: 16px;
+  border: 2.5px solid var(--border);
+  background: var(--bg);
+  cursor: pointer;
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px; font-weight: 800;
+  color: var(--text-muted);
+  text-align: center;
+  transition: all 0.18s;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.scl .em { font-size: 26px; }
+.scl:hover {
+  transform: translateY(-3px) scale(1.06);
+  box-shadow: 0 5px 18px var(--shadow);
+  border-color: var(--primary);
+}
+.scl.selected {
+  border-color: var(--primary);
+  background: linear-gradient(135deg, rgba(26,79,191,0.12), rgba(78,205,196,0.08));
+  color: var(--primary);
+  transform: translateY(-3px) scale(1.08);
+}
+
+/* ── Matrix (scale label above buttons, activities as columns) ── */
+.mx-wrap { display: flex; flex-direction: column; gap: 0; flex: 1; }
+.mx-act-hdr-row {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: 8px;
+  padding-bottom: 10px; border-bottom: 2px solid var(--border); margin-bottom: 6px;
+}
+.mx-act-hdr {
+  text-align: center; font-size: 14px; font-weight: 900; color: var(--text); line-height: 1.4;
+}
+.mx-scale-row {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: 8px;
+  margin-bottom: 8px;
+}
+.mx-cell {
+  min-height: 58px; padding: 8px 4px;
+  border-radius: 14px;
+  border: 2px solid var(--border); background: var(--bg);
+  cursor: pointer; transition: all 0.15s;
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px; font-weight: 800; color: var(--text-muted);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; line-height: 1.3; gap: 3px;
+}
+.mx-cell .mc-em { font-size: 22px; }
+.mx-cell:hover { border-color: var(--primary); transform: scale(1.04); color: var(--primary); }
+.mx-cell.selected {
+  border-color: var(--primary); background: var(--primary); color: white;
+}
+.mx-cell.selected .mc-em { filter: brightness(10); }
+@media (max-width: 520px) {
+  .mx-act-hdr { font-size: 12px; }
+  .mx-cell { min-height: 52px; font-size: 11px; border-radius: 12px; }
+  .mx-cell .mc-em { font-size: 18px; }
+}
+
+/* ── Package info box ── */
+.pkg-box {
+  background: linear-gradient(135deg, rgba(26,79,191,0.07), rgba(78,205,196,0.06));
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  padding: 14px 18px;
+  margin-bottom: 18px;
+}
+.pkg-name {
+  font-size: 17px; font-weight: 900; color: var(--primary); margin-bottom: 8px;
+}
+.pkg-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.pkg-tag {
+  padding: 4px 12px;
+  background: var(--card-bg);
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  font-size: 13px; font-weight: 700; color: var(--text);
+}
+
+/* ── Textarea & Inputs ── */
+.survey-ta {
+  width: 100%;
+  padding: 15px 18px;
+  border-radius: 16px;
+  border: 2.5px solid var(--border);
+  background: var(--bg);
+  font-family: 'Nunito', sans-serif;
+  font-size: 16px; font-weight: 600;
+  color: var(--text);
+  resize: vertical; min-height: 130px;
+  outline: none; transition: border-color 0.2s;
+  flex: 1;
+}
+.survey-ta:focus { border-color: var(--primary); }
+.field-group { display: flex; flex-direction: column; gap: 14px; flex: 1; }
+.field-label {
+  font-size: 12px; font-weight: 900; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;
+}
+.survey-inp {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 2.5px solid var(--border);
+  background: var(--bg);
+  font-family: 'Nunito', sans-serif;
+  font-size: 16px; font-weight: 600;
+  color: var(--text);
+  outline: none; transition: border-color 0.2s;
+}
+.survey-inp:focus { border-color: var(--primary); }
+
+/* ── Welcome / Thank you ── */
+.ctr {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center; padding: 12px 0;
+}
+.big-em { font-size: 80px; margin-bottom: 18px; animation: popIn 0.5s ease-out; }
+.wel-title { font-size: 28px; font-weight: 900; color: var(--primary); margin-bottom: 10px; }
+.wel-sub { font-size: 15px; font-weight: 700; color: var(--text-muted); margin-bottom: 18px; }
+.wel-desc {
+  font-size: 16px; font-weight: 600; color: var(--text);
+  line-height: 1.7; max-width: 480px; margin-bottom: 22px;
+}
+.badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 20px;
+  background: linear-gradient(135deg, #F7B731, #FFD93D);
+  border-radius: 20px;
+  font-size: 14px; font-weight: 900; color: #7A5500;
+  margin-bottom: 8px;
+}
+.ty-msg {
+  font-size: 16px; font-weight: 600; color: var(--text);
+  line-height: 1.7; max-width: 460px; margin-bottom: 14px;
+}
+.ty-note {
+  font-size: 14px; font-weight: 700; color: var(--text-muted);
+  max-width: 420px;
+}
+
+/* ── Optional tag & notice ── */
+.opt-tag {
+  display: inline-block;
+  padding: 2px 9px;
+  background: rgba(255,215,61,0.22);
+  color: #7A5500;
+  border: 1.5px solid #FFD93D;
+  border-radius: 10px;
+  font-size: 10px; font-weight: 900;
+  letter-spacing: 0.4px; text-transform: uppercase;
+  vertical-align: middle; margin-left: 6px;
+}
+[data-theme="dark"] .opt-tag { color: #FFD93D; background: rgba(255,215,61,0.12); }
+.opt-notice {
+  font-size: 14px; font-weight: 700;
+  color: var(--text-muted);
+  background: var(--bg);
+  border: 1.5px dashed var(--border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+/* ── Swipe hint ── */
+.swipe-hint {
+  text-align: center; font-size: 13px; font-weight: 700;
+  color: var(--text-muted); margin-top: 10px; letter-spacing: 0.2px;
+}
+
+/* ── Error ── */
+.err {
+  font-size: 14px; font-weight: 800;
+  color: var(--secondary);
+  margin-top: 14px; display: none;
+}
+.err.show { display: block; }
+
+/* ── Nav footer ── */
+.nav {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
+  padding: 14px 16px;
+  background: var(--nav-bg);
+  border-top: 2px solid var(--border);
+  display: flex; gap: 12px; align-items: center;
+  transition: background 0.35s;
+}
+.nav-btn {
+  flex: 1; padding: 16px;
+  border-radius: 16px; border: none;
+  font-family: 'Nunito', sans-serif;
+  font-size: 17px; font-weight: 900;
+  cursor: pointer; transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.nav-back {
+  background: var(--bg); color: var(--text-muted);
+  border: 2.5px solid var(--border); max-width: 110px;
+}
+.nav-back:hover { background: var(--border); }
+.nav-next {
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  color: white;
+  box-shadow: 0 5px 20px rgba(26,79,191,0.38);
+}
+.nav-next:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(26,79,191,0.5); }
+.nav-submit {
+  background: linear-gradient(135deg, var(--accent), #6EE7E7);
+  color: #0A4A45;
+  box-shadow: 0 5px 20px rgba(78,205,196,0.38);
+}
+.nav-submit:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(78,205,196,0.5); }
+.nav-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
+
+/* ── Loading overlay ── */
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: none; align-items: center; justify-content: center;
+  z-index: 999; flex-direction: column; gap: 16px;
+}
+.overlay.show { display: flex; }
+.spinner {
+  width: 56px; height: 56px;
+  border: 5px solid rgba(255,255,255,0.25);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.overlay-txt { color: white; font-size: 16px; font-weight: 800; }
+
+/* ── Confetti particles ── */
+.confetti-wrap {
+  position: fixed; inset: 0; pointer-events: none; z-index: 500;
+  overflow: hidden;
+}
+.conf {
+  position: absolute;
+  width: 10px; height: 10px;
+  border-radius: 2px;
+  animation: fall linear forwards;
+}
+@keyframes fall {
+  0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+}
+
+/* ── Responsive ── */
+@media (max-width: 520px) {
+  .card { padding: 24px 18px; min-height: 360px; }
+  .qtxt { font-size: 19px; }
+  .opt  { font-size: 15px; padding: 14px 16px; }
+  .opts.two-col { grid-template-columns: 1fr; }
+  .scale { gap: 5px; }
+  .scl .em { font-size: 22px; }
+  .scl { font-size: 11px; padding: 12px 2px; }
+  .wel-title { font-size: 22px; }
+  .big-em { font-size: 64px; }
+  .nav-btn { font-size: 15px; padding: 14px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="hdr">
+  <div class="hdr-title">⭐ After-School Survey</div>
+  <div class="hdr-btns">
+    <button class="icon-btn" id="dm-btn" title="Toggle dark mode" onclick="toggleDark()">🌙</button>
+    <div class="lang-wrap">
+      <button class="icon-btn" title="Change language" onclick="toggleLangDrop()">🌐</button>
+      <div class="lang-drop" id="lang-drop">
+        <div class="lang-opt" onclick="setLang('en')">🇺🇸 English</div>
+        <div class="lang-opt" onclick="setLang('es')">🇪🇸 Español</div>
+        <div class="lang-opt" onclick="setLang('zh')">🇨🇳 中文</div>
+        <div class="lang-opt" onclick="setLang('fr')">🇫🇷 Français</div>
+        <div class="lang-opt" onclick="setLang('ko')">🇰🇷 한국어</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- Progress bar -->
+<div class="prog-wrap" id="prog-wrap">
+  <div class="prog-track"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+  <div class="prog-txt" id="prog-txt"></div>
+</div>
+
+<!-- Main -->
+<main class="main">
+  <div class="card-wrap" id="card-wrap">
+    <div class="card" id="main-card"></div>
+    <div class="swipe-hint" id="swipe-hint"></div>
+  </div>
+</main>
+
+<!-- Nav footer -->
+<div class="nav" id="nav-bar">
+  <button class="nav-btn nav-back" id="btn-back" onclick="goBack()">← Back</button>
+  <button class="nav-btn nav-next" id="btn-next" onclick="goNext()">Next →</button>
+</div>
+
+<!-- Loading overlay -->
+<div class="overlay" id="overlay">
+  <div class="spinner"></div>
+  <div class="overlay-txt" id="overlay-txt">Submitting…</div>
+</div>
+
+<!-- Confetti container -->
+<div class="confetti-wrap" id="confetti-wrap"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  SUPABASE — replace with your credentials
+// ═══════════════════════════════════════════════
+const SUPABASE_URL      = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+
+let sb = null;
+try {
+  if (SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
+    sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+} catch(e) { console.warn('Supabase init failed', e); }
+
+// ═══════════════════════════════════════════════
+//  TRANSLATIONS
+// ═══════════════════════════════════════════════
+const TR = {
+  en: {
+    hdrTitle: '⭐ After-School Survey',
+    start: 'Start Survey →',
+    back: '← Back', next: 'Next →', submit: '✓ Submit Survey',
+    qOf: 'Question {n} of {total}',
+    swipe: '👈  Swipe left / right to navigate  👉',
+    selectAll: 'Select all that apply',
+    selectUp3: 'Select up to 3 — choose wisely!',
+    optional: 'Optional',
+    optNotice: 'All fields on this page are optional. Skip anytime — just hit Submit.',
+    loading: 'Submitting…',
+    errRequired: 'Please select an answer to continue.',
+    errSubmit: 'Submission failed — please try again.',
+
+    welTitle: 'After-School Program Survey',
+    welSub: 'Market Research & Interest Survey',
+    welDesc: 'Help us design the perfect after-school programs for your child! Your answers directly shape our scheduling, bundles, and curriculum. It only takes 3–5 minutes.',
+    welBadge: '⏱  3 – 5 Minutes',
+
+    p1: 'Part I · Demographics',
+    p2: 'Part II · Program Bundles',
+    p3: 'Part III · Customization',
+    p4: 'Part IV · Feedback',
+    p5: 'Part V · Contact (Optional)',
+
+    q1: 'Please select the current grade level(s) of the child(ren) you intend to enroll:',
+    q1o: ['🎒 Kindergarten / Preschool (Ages 3–5)',
+          '📚 Elementary School (Grades 1–3, Ages 6–8)',
+          '🏫 Upper Elementary (Grades 4–5, Ages 9–10)',
+          '🎓 Middle School (Grades 6–8, Ages 11–13)'],
+
+    q2: 'How many children from your household would participate?',
+    q2o: ['👦 1 Child', '👫 2 Children', '👨‍👩‍👧‍👦 3+ Children'],
+
+    pkgAName: '✨ Enrichment Bundle — Package A',
+    pkgATags: ['🎹 Piano', '🥋 Karate', '🎨 Art'],
+    q3: 'How likely are you to enroll in the Enrichment Bundle?',
+
+    pkgBName: '⚽ Active Bundle — Package B',
+    pkgBTags: ['⚽ Soccer', '🎾 Tennis', '🏀 Basketball'],
+    q4: 'How likely are you to enroll in the Active Bundle?',
+
+    pkgCName: '🤖 AI Innovators Bundle — Package C',
+    pkgCTags: ['💻 Coding', '🎮 Video Game Design', '🚀 MVP Development'],
+    q5: 'How likely are you to enroll in the AI Innovators Bundle?',
+
+    scaleLabels: ['😑 Not\nLikely','🙁 Unlikely','😐 Neutral','🙂 Somewhat','😄 Very\nLikely'],
+    qMatrix: 'Rate your interest in each activity:',
+
+    q6: 'Which model best serves your needs? Our preset plans optimize skill progression; a "Mix-and-Match" option is also being explored.',
+    q6o: ['📦 Preset Bundles', '✏️ Customized Plan', '🤷 Indifferent'],
+
+    q7: 'If you prefer a custom plan, select up to three (3) activities for your ideal schedule:',
+    q7o: ['🎹 Piano','⚽ Soccer','🥋 Karate','🎾 Tennis','🎨 Art','🏀 Basketball','🤖 AI Innovators (Coding, Tech & MVP Dev.)','💡 Other'],
+
+    q8: 'To what degree does the 10% Sibling / Multi-Child Discount influence your decision to enroll multiple children?',
+    q8o: ['🌟 Primary Driver — crucial factor',
+          '👍 Secondary Consideration — appreciated, not deciding',
+          '💭 Negligible Impact — does not influence decision',
+          '👤 Not Applicable — single-child household'],
+
+    q9: 'Additional comments, scheduling requirements (days / times), or programmatic suggestions:',
+    q9ph: 'Share your thoughts, preferred days/times, or any other feedback…',
+
+    q10: 'Provide your contact information to receive priority notification when our 3-month introductory pricing goes live.',
+    q10n: 'Full Name', q10e: 'Email Address', q10p: 'Phone Number',
+    q10np: 'Your full name', q10ep: 'your@email.com', q10pp: '+1 (555) 000-0000',
+
+    tyTitle: 'Thank You! 🎉',
+    tyMsg: 'Your feedback plays a critical role in shaping a premium after-school experience for our student cohort. We truly appreciate your valuable insight!',
+    tyNote: 'Families who shared contact information will receive priority access to our upcoming enrollment window.',
+  },
+
+  es: {
+    hdrTitle: '⭐ Encuesta Extracurricular',
+    start: 'Comenzar →',
+    back: '← Atrás', next: 'Siguiente →', submit: '✓ Enviar Encuesta',
+    qOf: 'Pregunta {n} de {total}',
+    swipe: '👈  Desliza para navegar  👉',
+    selectAll: 'Selecciona todas las que apliquen',
+    selectUp3: 'Selecciona hasta 3 actividades',
+    optional: 'Opcional',
+    optNotice: 'Todos los campos de esta página son opcionales. Puedes omitirlos y hacer clic en Enviar.',
+    loading: 'Enviando…',
+    errRequired: 'Por favor selecciona una respuesta para continuar.',
+    errSubmit: 'Error al enviar — por favor intenta de nuevo.',
+
+    welTitle: 'Encuesta de Programas Extracurriculares',
+    welSub: 'Investigación de Mercado y Encuesta de Interés',
+    welDesc: '¡Ayúdanos a diseñar los programas perfectos para tu hijo! Tus respuestas influyen directamente en nuestra oferta. Solo toma 3–5 minutos.',
+    welBadge: '⏱  3 – 5 Minutos',
+
+    p1: 'Parte I · Demografía',
+    p2: 'Parte II · Paquetes',
+    p3: 'Parte III · Personalización',
+    p4: 'Parte IV · Comentarios',
+    p5: 'Parte V · Contacto (Opcional)',
+
+    q1: 'Por favor selecciona el nivel de grado actual del/los niño(s) que deseas inscribir:',
+    q1o: ['🎒 Kínder / Preescolar (3–5 años)',
+          '📚 Primaria Baja (Grados 1–3, 6–8 años)',
+          '🏫 Primaria Alta (Grados 4–5, 9–10 años)',
+          '🎓 Secundaria (Grados 6–8, 11–13 años)'],
+
+    q2: '¿Cuántos niños de tu hogar participarían?',
+    q2o: ['👦 1 Niño', '👫 2 Niños', '👨‍👩‍👧‍👦 3+ Niños'],
+
+    pkgAName: '✨ Paquete Enriquecimiento — Paquete A',
+    pkgATags: ['🎹 Piano', '🥋 Karate', '🎨 Arte'],
+    q3: '¿Qué tan probable es que te inscribas en el Paquete de Enriquecimiento?',
+
+    pkgBName: '⚽ Paquete Activo — Paquete B',
+    pkgBTags: ['⚽ Fútbol', '🎾 Tenis', '🏀 Baloncesto'],
+    q4: '¿Qué tan probable es que te inscribas en el Paquete Activo?',
+
+    pkgCName: '🤖 Paquete AI Innovadores — Paquete C',
+    pkgCTags: ['💻 Programación', '🎮 Diseño de Videojuegos', '🚀 Desarrollo MVP'],
+    q5: '¿Qué tan probable es que te inscribas en el Paquete AI Innovadores?',
+
+    scaleLabels: ['😑 Nada\nprobable','🙁 Poco\nprobable','😐 Neutral','🙂 Probable','😄 Muy\nprobable'],
+    qMatrix: 'Evalúa tu interés en cada actividad:',
+
+    q6: '¿Qué modelo se adapta mejor a tus necesidades?',
+    q6o: ['📦 Paquetes Preestablecidos', '✏️ Plan Personalizado', '🤷 Indiferente'],
+
+    q7: 'Si prefieres un plan personalizado, selecciona hasta tres (3) actividades:',
+    q7o: ['🎹 Piano','⚽ Fútbol','🥋 Karate','🎾 Tenis','🎨 Arte','🏀 Baloncesto','🤖 AI Innovadores (Programación, Tech & MVP)','💡 Otro'],
+
+    q8: '¿En qué medida el descuento del 10% para hermanos/múltiples niños influye en tu decisión?',
+    q8o: ['🌟 Factor Principal — crucial',
+          '👍 Consideración Secundaria — apreciado, no decisivo',
+          '💭 Impacto Mínimo — no influye',
+          '👤 No Aplica — hogar con un solo hijo'],
+
+    q9: 'Comentarios adicionales, horarios preferidos o sugerencias de programa:',
+    q9ph: 'Comparte tus comentarios, días/horas preferidos…',
+
+    q10: 'Proporciona tu información de contacto para recibir notificación prioritaria cuando se lancen los precios introductorios.',
+    q10n: 'Nombre Completo', q10e: 'Correo Electrónico', q10p: 'Teléfono',
+    q10np: 'Tu nombre completo', q10ep: 'tu@correo.com', q10pp: '+1 (555) 000-0000',
+
+    tyTitle: '¡Gracias! 🎉',
+    tyMsg: 'Tu opinión es fundamental para dar forma a una experiencia extracurricular premium para nuestros estudiantes.',
+    tyNote: 'Las familias que compartieron su información de contacto recibirán acceso prioritario a nuestra ventana de inscripción.',
+  },
+
+  zh: {
+    hdrTitle: '⭐ 课后项目调查',
+    start: '开始调查 →',
+    back: '← 返回', next: '下一步 →', submit: '✓ 提交调查',
+    qOf: '第 {n} 题，共 {total} 题',
+    swipe: '👈  左右滑动切换问题  👉',
+    selectAll: '选择所有适用项',
+    selectUp3: '最多选择3项活动',
+    optional: '可选',
+    optNotice: '此页所有字段均为选填，可直接跳过点击提交。',
+    loading: '提交中…',
+    errRequired: '请选择答案后继续。',
+    errSubmit: '提交失败，请重试。',
+
+    welTitle: '课后项目调查问卷',
+    welSub: '市场研究与兴趣调查',
+    welDesc: '请帮助我们为您的孩子设计完美的课后项目！您的回答将直接影响我们的课程安排与套餐设计。仅需3–5分钟。',
+    welBadge: '⏱  3 – 5 分钟',
+
+    p1: '第一部分 · 家庭信息',
+    p2: '第二部分 · 项目套餐',
+    p3: '第三部分 · 定制化',
+    p4: '第四部分 · 反馈',
+    p5: '第五部分 · 联系方式（可选）',
+
+    q1: '请选择您计划报名的孩子的当前年级：',
+    q1o: ['🎒 幼儿园 / 学前班（3–5岁）',
+          '📚 小学低年级（1–3年级，6–8岁）',
+          '🏫 小学高年级（4–5年级，9–10岁）',
+          '🎓 初中（6–8年级，11–13岁）'],
+
+    q2: '您家庭中有多少孩子将参与课后项目？',
+    q2o: ['👦 1个孩子', '👫 2个孩子', '👨‍👩‍👧‍👦 3个或更多'],
+
+    pkgAName: '✨ 综合发展套餐 — 套餐A',
+    pkgATags: ['🎹 钢琴', '🥋 空手道', '🎨 美术'],
+    q3: '您报名综合发展套餐的可能性有多大？',
+
+    pkgBName: '⚽ 运动活力套餐 — 套餐B',
+    pkgBTags: ['⚽ 足球', '🎾 网球', '🏀 篮球'],
+    q4: '您报名运动活力套餐的可能性有多大？',
+
+    pkgCName: '🤖 AI创新套餐 — 套餐C',
+    pkgCTags: ['💻 编程', '🎮 游戏设计', '🚀 MVP开发'],
+    q5: '您报名AI创新套餐的可能性有多大？',
+
+    scaleLabels: ['😑 完全\n不可能','🙁 不太\n可能','😐 中立','🙂 有些\n可能','😄 非常\n可能'],
+    qMatrix: '请对每项活动单独评分：',
+
+    q6: '哪种模式最适合您的需求？',
+    q6o: ['📦 预设套餐', '✏️ 定制化方案', '🤷 无所谓'],
+
+    q7: '如果偏好自定义，请选择最多三项活动：',
+    q7o: ['🎹 钢琴','⚽ 足球','🥋 空手道','🎾 网球','🎨 美术','🏀 篮球','🤖 AI创新（编程、科技与MVP开发）','💡 其他'],
+
+    q8: '10%的兄弟姐妹/多孩折扣对您决定报名多个孩子的影响有多大？',
+    q8o: ['🌟 主要因素 — 至关重要',
+          '👍 次要考虑 — 有帮助，但非决定因素',
+          '💭 影响甚微 — 不影响决定',
+          '👤 不适用 — 独生子女家庭'],
+
+    q9: '其他意见、时间安排要求（日期/时间）或课程建议：',
+    q9ph: '请分享您的想法、偏好的时间安排或任何其他反馈…',
+
+    q10: '请提供您的联系信息，以便在3个月优惠价格推出时优先通知您。',
+    q10n: '全名', q10e: '电子邮件', q10p: '电话号码',
+    q10np: '您的全名', q10ep: 'your@email.com', q10pp: '+1 (555) 000-0000',
+
+    tyTitle: '非常感谢！🎉',
+    tyMsg: '您的宝贵反馈对我们打造优质课后体验至关重要，我们衷心感谢您的参与！',
+    tyNote: '提供了联系方式的家庭将优先获得报名通知。',
+  },
+
+  fr: {
+    hdrTitle: '⭐ Sondage Parascolaire',
+    start: 'Commencer →',
+    back: '← Retour', next: 'Suivant →', submit: '✓ Soumettre',
+    qOf: 'Question {n} sur {total}',
+    swipe: '👈  Glissez pour naviguer  👉',
+    selectAll: 'Sélectionnez tout ce qui s\'applique',
+    selectUp3: 'Sélectionnez jusqu\'à 3 activités',
+    optional: 'Optionnel',
+    optNotice: 'Tous les champs de cette page sont optionnels. Ignorez-les et cliquez sur Soumettre.',
+    loading: 'Envoi en cours…',
+    errRequired: 'Veuillez sélectionner une réponse pour continuer.',
+    errSubmit: 'Erreur lors de l\'envoi — veuillez réessayer.',
+
+    welTitle: 'Sondage sur les Programmes Parascolaires',
+    welSub: 'Étude de Marché & Sondage d\'Intérêt',
+    welDesc: 'Aidez-nous à concevoir les programmes parfaits pour votre enfant ! Vos réponses influencent directement notre offre. Seulement 3–5 minutes.',
+    welBadge: '⏱  3 – 5 Minutes',
+
+    p1: 'Partie I · Démographie',
+    p2: 'Partie II · Forfaits',
+    p3: 'Partie III · Personnalisation',
+    p4: 'Partie IV · Commentaires',
+    p5: 'Partie V · Contact (Optionnel)',
+
+    q1: 'Veuillez sélectionner le niveau scolaire actuel du/des enfant(s) que vous souhaitez inscrire :',
+    q1o: ['🎒 Maternelle / Préscolaire (3–5 ans)',
+          '📚 École Primaire (CP-CE2, 6–8 ans)',
+          '🏫 Primaire Supérieure (CM1-CM2, 9–10 ans)',
+          '🎓 Collège (6e-4e, 11–13 ans)'],
+
+    q2: 'Combien d\'enfants de votre foyer participeraient ?',
+    q2o: ['👦 1 Enfant', '👫 2 Enfants', '👨‍👩‍👧‍👦 3+ Enfants'],
+
+    pkgAName: '✨ Forfait Enrichissement — Forfait A',
+    pkgATags: ['🎹 Piano', '🥋 Karaté', '🎨 Art'],
+    q3: 'Quelle est la probabilité que vous vous inscriviez au Forfait Enrichissement ?',
+
+    pkgBName: '⚽ Forfait Actif — Forfait B',
+    pkgBTags: ['⚽ Football', '🎾 Tennis', '🏀 Basketball'],
+    q4: 'Quelle est la probabilité que vous vous inscriviez au Forfait Actif ?',
+
+    pkgCName: '🤖 Forfait Innovateurs IA — Forfait C',
+    pkgCTags: ['💻 Programmation', '🎮 Jeux Vidéo', '🚀 Développement MVP'],
+    q5: 'Quelle est la probabilité que vous vous inscriviez au Forfait Innovateurs IA ?',
+
+    scaleLabels: ['😑 Pas du\ntout','🙁 Peu\nprobable','😐 Neutre','🙂 Assez\nprobable','😄 Très\nprobable'],
+    qMatrix: 'Évaluez votre intérêt pour chaque activité :',
+
+    q6: 'Quel modèle convient le mieux à vos besoins ?',
+    q6o: ['📦 Forfaits Prédéfinis', '✏️ Plan Personnalisé', '🤷 Indifférent'],
+
+    q7: 'Si vous préférez un plan personnalisé, sélectionnez jusqu\'à trois (3) activités :',
+    q7o: ['🎹 Piano','⚽ Football','🥋 Karaté','🎾 Tennis','🎨 Art','🏀 Basketball','🤖 Innovateurs IA (Programmation, Tech & MVP)','💡 Autre'],
+
+    q8: 'Dans quelle mesure la remise de 10% pour fratrie influence-t-elle votre décision ?',
+    q8o: ['🌟 Facteur Principal — décisif',
+          '👍 Considération Secondaire — apprécié, non décisif',
+          '💭 Impact Négligeable — n\'influence pas',
+          '👤 Non Applicable — enfant unique'],
+
+    q9: 'Commentaires supplémentaires, horaires souhaités ou suggestions de programme :',
+    q9ph: 'Partagez vos pensées, jours/heures préférés ou tout autre commentaire…',
+
+    q10: 'Fournissez vos coordonnées pour recevoir une notification prioritaire lors du lancement de nos tarifs d\'introduction.',
+    q10n: 'Nom Complet', q10e: 'Adresse E-mail', q10p: 'Téléphone',
+    q10np: 'Votre nom complet', q10ep: 'votre@email.com', q10pp: '+33 6 00 00 00 00',
+
+    tyTitle: 'Merci ! 🎉',
+    tyMsg: 'Vos commentaires jouent un rôle essentiel dans la création d\'une expérience parascolaire premium pour nos élèves.',
+    tyNote: 'Les familles ayant fourni leurs coordonnées recevront un accès prioritaire à notre fenêtre d\'inscription.',
+  },
+
+  ko: {
+    hdrTitle: '⭐ 방과후 프로그램 설문',
+    start: '설문 시작 →',
+    back: '← 이전', next: '다음 →', submit: '✓ 설문 제출',
+    qOf: '{n}/{total} 번째 질문',
+    swipe: '👈  좌우로 스와이프하여 이동  👉',
+    selectAll: '해당하는 항목 모두 선택',
+    selectUp3: '최대 3개 활동 선택',
+    optional: '선택사항',
+    optNotice: '이 페이지의 모든 항목은 선택사항입니다. 건너뛰고 바로 제출하셔도 됩니다.',
+    loading: '제출 중…',
+    errRequired: '계속하려면 답변을 선택해 주세요.',
+    errSubmit: '제출 실패 — 다시 시도해 주세요.',
+
+    welTitle: '방과후 프로그램 설문조사',
+    welSub: '시장 조사 및 관심도 설문',
+    welDesc: '자녀를 위한 완벽한 방과후 프로그램을 설계하는 데 도움을 주세요! 3–5분이면 충분합니다.',
+    welBadge: '⏱  3 – 5분',
+
+    p1: '제1부 · 가족 정보',
+    p2: '제2부 · 프로그램 패키지',
+    p3: '제3부 · 맞춤화',
+    p4: '제4부 · 피드백',
+    p5: '제5부 · 연락처 (선택)',
+
+    q1: '등록하려는 자녀의 현재 학년을 선택해 주세요:',
+    q1o: ['🎒 유치원 / 미취학 (3–5세)',
+          '📚 초등 저학년 (1–3학년, 6–8세)',
+          '🏫 초등 고학년 (4–5학년, 9–10세)',
+          '🎓 중학교 (6–8학년, 11–13세)'],
+
+    q2: '귀 가정에서 몇 명의 자녀가 참여할 예정인가요?',
+    q2o: ['👦 자녀 1명', '👫 자녀 2명', '👨‍👩‍👧‍👦 자녀 3명 이상'],
+
+    pkgAName: '✨ 종합 발전 패키지 — 패키지 A',
+    pkgATags: ['🎹 피아노', '🥋 가라테', '🎨 미술'],
+    q3: '종합 발전 패키지에 등록할 가능성은 얼마나 되나요?',
+
+    pkgBName: '⚽ 액티브 스포츠 패키지 — 패키지 B',
+    pkgBTags: ['⚽ 축구', '🎾 테니스', '🏀 농구'],
+    q4: '액티브 스포츠 패키지에 등록할 가능성은 얼마나 되나요?',
+
+    pkgCName: '🤖 AI 혁신가 패키지 — 패키지 C',
+    pkgCTags: ['💻 코딩', '🎮 게임 디자인', '🚀 MVP 개발'],
+    q5: 'AI 혁신가 패키지에 등록할 가능성은 얼마나 되나요?',
+
+    scaleLabels: ['😑 전혀\n없음','🙁 낮음','😐 보통','🙂 가능성\n있음','😄 매우\n높음'],
+    qMatrix: '각 활동에 대한 관심도를 평가해 주세요:',
+
+    q6: '어떤 모델이 귀하의 필요에 가장 잘 맞나요?',
+    q6o: ['📦 사전 설정 패키지', '✏️ 맞춤형 플랜', '🤷 상관없음'],
+
+    q7: '맞춤형 플랜을 선호하신다면 최대 세 가지 활동을 선택해 주세요:',
+    q7o: ['🎹 피아노','⚽ 축구','🥋 가라테','🎾 테니스','🎨 미술','🏀 농구','🤖 AI 혁신가 (코딩, 기술 & MVP 개발)','💡 기타'],
+
+    q8: '10% 형제자매/다자녀 할인이 여러 자녀 등록 결정에 얼마나 영향을 미치나요?',
+    q8o: ['🌟 주요 요인 — 결정적인 요소',
+          '👍 부차적 고려 — 도움이 되지만 결정적이지 않음',
+          '💭 미미한 영향 — 결정에 영향 없음',
+          '👤 해당 없음 — 외동 가정'],
+
+    q9: '추가 의견, 원하는 요일/시간 또는 프로그램 제안을 자유롭게 적어주세요:',
+    q9ph: '의견, 선호 요일/시간 또는 기타 피드백을 공유해 주세요…',
+
+    q10: '3개월 특별 가격 출시 시 우선 알림을 받으려면 연락처를 입력해 주세요.',
+    q10n: '성명', q10e: '이메일 주소', q10p: '전화번호',
+    q10np: '성명을 입력하세요', q10ep: 'your@email.com', q10pp: '+82 10-0000-0000',
+
+    tyTitle: '감사합니다! 🎉',
+    tyMsg: '소중한 의견을 주셔서 감사합니다. 귀하의 피드백은 프리미엄 방과후 프로그램을 만드는 데 큰 역할을 합니다.',
+    tyNote: '연락처를 제공해 주신 가정에는 등록 기간에 우선 접근권을 드립니다.',
+  }
+};
+
+// ═══════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════
+const S = {
+  card: 0,          // 0=welcome, 1-10=questions, 11=thankyou
+  total: 10,
+  lang: localStorage.getItem('survey_lang') || 'en',
+  dark: localStorage.getItem('survey_dark') === '1',
+  busy: false,
+  ans: {
+    q1: [], q2: '', q3: {}, q4: {}, q5: {},
+    q6: '', q7: [], q8: '', q9: '',
+    cName: '', cEmail: '', cPhone: ''
+  }
+};
+
+// ═══════════════════════════════════════════════
+//  DARK MODE
+// ═══════════════════════════════════════════════
+function applyTheme() {
+  document.documentElement.dataset.theme = S.dark ? 'dark' : 'light';
+  document.getElementById('dm-btn').textContent = S.dark ? '☀️' : '🌙';
+}
+function toggleDark() {
+  S.dark = !S.dark;
+  localStorage.setItem('survey_dark', S.dark ? '1' : '0');
+  applyTheme();
+}
+applyTheme();
+
+// ═══════════════════════════════════════════════
+//  LANGUAGE
+// ═══════════════════════════════════════════════
+function toggleLangDrop() {
+  document.getElementById('lang-drop').classList.toggle('open');
+}
+function setLang(code) {
+  S.lang = code;
+  localStorage.setItem('survey_lang', code);
+  document.getElementById('lang-drop').classList.remove('open');
+  renderCard(S.card, 'none');
+  updateNav();
+  updateProgress();
+  updateSwipeHint();
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.lang-wrap')) {
+    document.getElementById('lang-drop').classList.remove('open');
+  }
+});
+
+// ═══════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════
+const CARD = document.getElementById('main-card');
+
+function t(key) { return TR[S.lang][key] || TR['en'][key] || key; }
+
+function renderCard(idx, anim) {
+  const html = buildHTML(idx);
+  if (anim === 'forward') {
+    CARD.className = 'card anim-out-left';
+    setTimeout(() => {
+      CARD.innerHTML = html;
+      CARD.className = 'card anim-in-right';
+      restoreInputs(idx);
+    }, 280);
+  } else if (anim === 'back') {
+    CARD.className = 'card anim-out-right';
+    setTimeout(() => {
+      CARD.innerHTML = html;
+      CARD.className = 'card anim-in-left';
+      restoreInputs(idx);
+    }, 280);
+  } else {
+    CARD.innerHTML = html;
+    CARD.className = 'card';
+    restoreInputs(idx);
+  }
+}
+
+function restoreInputs(idx) {
+  if (idx === 9) {
+    const ta = document.getElementById('q9-ta');
+    if (ta) ta.value = S.ans.q9;
+  }
+  if (idx === 10) {
+    const n = document.getElementById('inp-name');
+    const e = document.getElementById('inp-email');
+    const p = document.getElementById('inp-phone');
+    if (n) n.value = S.ans.cName;
+    if (e) e.value = S.ans.cEmail;
+    if (p) p.value = S.ans.cPhone;
+  }
+}
+
+function buildHTML(idx) {
+  if (idx === 0)  return buildWelcome();
+  if (idx === 11) return buildThankYou();
+  if (idx === 1)  return buildMultiOpt('q1', t('p1'), 'pill-a', 'Question 1', t('q1'), t('q1o'), t('selectAll'));
+  if (idx === 2)  return buildSingleOpt('q2', t('p1'), 'pill-a', 'Question 2', t('q2'), t('q2o'));
+  if (idx === 3)  return buildMatrix('q3', t('p2'), 'pill-b', 'Question 3', t('pkgAName'), t('pkgATags'));
+  if (idx === 4)  return buildMatrix('q4', t('p2'), 'pill-b', 'Question 4', t('pkgBName'), t('pkgBTags'));
+  if (idx === 5)  return buildMatrix('q5', t('p2'), 'pill-b', 'Question 5', t('pkgCName'), t('pkgCTags'));
+  if (idx === 6)  return buildSingleOpt('q6', t('p3'), 'pill-c', 'Question 6', t('q6'), t('q6o'));
+  if (idx === 7)  return buildMultiOpt('q7', t('p3'), 'pill-c', 'Question 7', t('q7'), t('q7o'), t('selectUp3'), 3);
+  if (idx === 8)  return buildSingleOpt('q8', t('p4'), 'pill-d', 'Question 8', t('q8'), t('q8o'));
+  if (idx === 9)  return buildTextarea('q9', t('p4'), 'pill-d', 'Question 9', t('q9'), t('q9ph'));
+  if (idx === 10) return buildContact();
+  return '';
+}
+
+function buildWelcome() {
+  return `<div class="ctr">
+    <div class="big-em">🎓</div>
+    <div class="wel-title">${t('welTitle')}</div>
+    <div class="wel-sub">${t('welSub')}</div>
+    <div class="wel-desc">${t('welDesc')}</div>
+    <div class="badge">${t('welBadge')}</div>
+  </div>`;
+}
+
+function buildThankYou() {
+  return `<div class="ctr">
+    <div class="big-em">🎉</div>
+    <div class="wel-title">${t('tyTitle')}</div>
+    <div class="ty-msg">${t('tyMsg')}</div>
+    <div class="ty-note">${t('tyNote')}</div>
+  </div>`;
+}
+
+function buildMultiOpt(qKey, part, pillCls, qNum, question, options, hint, max) {
+  const sel = S.ans[qKey] || [];
+  const atMax = max && sel.length >= max;
+  let opts = '';
+  options.forEach((o, i) => {
+    const v = i.toString();
+    const isSelected = sel.includes(v);
+    const blocked = atMax && !isSelected ? ' max-reached' : '';
+    opts += `<button class="opt${isSelected ? ' selected' : ''}${blocked}" data-q="${qKey}" data-v="${v}" data-max="${max||0}">${o}</button>`;
+  });
+  return `<span class="pill ${pillCls}">${part}</span>
+    <div class="qnum">${qNum}</div>
+    <div class="qtxt">${question}</div>
+    <div class="sub-hint">${hint}</div>
+    <div class="opts two-col">${opts}</div>
+    <div class="err" id="err-msg"></div>`;
+}
+
+function buildSingleOpt(qKey, part, pillCls, qNum, question, options) {
+  const sel = S.ans[qKey];
+  let opts = '';
+  options.forEach((o, i) => {
+    const v = i.toString();
+    opts += `<button class="opt${sel === v ? ' selected' : ''}" data-q="${qKey}" data-v="${v}">${o}</button>`;
+  });
+  return `<span class="pill ${pillCls}">${part}</span>
+    <div class="qnum">${qNum}</div>
+    <div class="qtxt">${question}</div>
+    <div class="opts">${opts}</div>
+    <div class="err" id="err-msg"></div>`;
+}
+
+function buildMatrix(qKey, part, pillCls, qNum, pkgName, activities) {
+  const sel = S.ans[qKey] || {};
+  const scaleData = t('scaleLabels').map(s => {
+    const spIdx = s.indexOf(' ');
+    return { em: s.slice(0, spIdx), txt: s.slice(spIdx+1).replace('\n',' ') };
+  });
+
+  // Activity names as column headers
+  const actHdrs = activities.map(act => `<div class="mx-act-hdr">${act}</div>`).join('');
+
+  // Each scale level = one row of 3 buttons, label+emoji inside each button
+  const rows = scaleData.map((sc, si) => {
+    const v = (si+1).toString();
+    const cells = activities.map((_, ai) =>
+      `<button class="mx-cell${sel[ai]===v?' selected':''}" data-q="${qKey}" data-ai="${ai}" data-v="${v}">
+        <span class="mc-em">${sc.em}</span>${sc.txt}
+      </button>`
+    ).join('');
+    return `<div class="mx-scale-row">${cells}</div>`;
+  }).join('');
+
+  return `<span class="pill ${pillCls}">${part}</span>
+    <div class="qnum">${qNum}</div>
+    <div class="pkg-box" style="margin-bottom:14px">
+      <div class="pkg-name">${pkgName}</div>
+    </div>
+    <div class="qtxt" style="font-size:18px;margin-bottom:14px">${t('qMatrix')}</div>
+    <div class="mx-wrap">
+      <div class="mx-act-hdr-row">${actHdrs}</div>
+      ${rows}
+    </div>
+    <div class="err" id="err-msg"></div>`;
+}
+
+function buildTextarea(qKey, part, pillCls, qNum, question, placeholder) {
+  return `<span class="pill ${pillCls}">${part}</span>
+    <div class="qnum">${qNum}</div>
+    <div class="qtxt">${question}</div>
+    <textarea class="survey-ta" id="${qKey}-ta" placeholder="${placeholder}">${S.ans[qKey]||''}</textarea>
+    <div class="err" id="err-msg"></div>`;
+}
+
+function buildContact() {
+  const opt = `<span class="opt-tag">${t('optional')}</span>`;
+  return `<span class="pill pill-e">${t('p5')}</span>
+    <div class="qnum">Question 10</div>
+    <div class="qtxt">${t('q10')}</div>
+    <div class="opt-notice">💡 ${t('optNotice')}</div>
+    <div class="field-group">
+      <div>
+        <div class="field-label">${t('q10n')} ${opt}</div>
+        <input class="survey-inp" id="inp-name" type="text" placeholder="${t('q10np')}" autocomplete="name">
+      </div>
+      <div>
+        <div class="field-label">${t('q10e')} ${opt}</div>
+        <input class="survey-inp" id="inp-email" type="email" placeholder="${t('q10ep')}" autocomplete="email">
+      </div>
+      <div>
+        <div class="field-label">${t('q10p')} ${opt}</div>
+        <input class="survey-inp" id="inp-phone" type="tel" placeholder="${t('q10pp')}" autocomplete="tel">
+      </div>
+    </div>
+    <div class="err" id="err-msg"></div>`;
+}
+
+// ═══════════════════════════════════════════════
+//  CLICK HANDLING (event delegation)
+// ═══════════════════════════════════════════════
+CARD.addEventListener('click', e => {
+  const btn = e.target.closest('[data-q]');
+  if (!btn) return;
+
+  const qKey = btn.dataset.q;
+  const val  = btn.dataset.v;
+  const max  = parseInt(btn.dataset.max) || 0;
+
+  const isMatrix = (qKey === 'q3' || qKey === 'q4' || qKey === 'q5');
+  const isMulti  = (qKey === 'q1' || qKey === 'q7');
+
+  if (isMatrix) {
+    const ai = btn.dataset.ai;
+    if (!S.ans[qKey]) S.ans[qKey] = {};
+    S.ans[qKey][ai] = val;
+    CARD.querySelectorAll(`[data-q="${qKey}"][data-ai="${ai}"]`).forEach(b => {
+      b.classList.toggle('selected', b.dataset.v === val);
+    });
+  } else if (isMulti) {
+    const arr = S.ans[qKey];
+    const pos = arr.indexOf(val);
+    if (pos === -1) {
+      if (max && arr.length >= max) return;
+      arr.push(val);
+    } else {
+      arr.splice(pos, 1);
+    }
+    // Update button visuals
+    const atMax = max && arr.length >= max;
+    CARD.querySelectorAll(`[data-q="${qKey}"]`).forEach(b => {
+      const bv = b.dataset.v;
+      const isSel = arr.includes(bv);
+      b.classList.toggle('selected', isSel);
+      b.classList.toggle('max-reached', atMax && !isSel);
+    });
+  } else {
+    S.ans[qKey] = val;
+    CARD.querySelectorAll(`[data-q="${qKey}"]`).forEach(b => {
+      b.classList.toggle('selected', b.dataset.v === val);
+    });
+  }
+
+  const err = document.getElementById('err-msg');
+  if (err) err.classList.remove('show');
+});
+
+// ═══════════════════════════════════════════════
+//  PROGRESS & NAV
+// ═══════════════════════════════════════════════
+function updateProgress() {
+  const progWrap = document.getElementById('prog-wrap');
+  const fill = document.getElementById('prog-fill');
+  const txt  = document.getElementById('prog-txt');
+
+  if (S.card === 0 || S.card === 11) {
+    progWrap.style.display = 'none';
+    return;
+  }
+  progWrap.style.display = '';
+  const pct = (S.card / S.total) * 100;
+  fill.style.width = pct + '%';
+  txt.textContent = t('qOf').replace('{n}', S.card).replace('{total}', S.total);
+}
+
+function updateNav() {
+  const nav  = document.getElementById('nav-bar');
+  const back = document.getElementById('btn-back');
+  const next = document.getElementById('btn-next');
+
+  if (S.card === 11) { nav.style.display = 'none'; return; }
+  nav.style.display = '';
+
+  if (S.card === 0) {
+    back.style.display = 'none';
+    next.textContent = t('start');
+    next.className = 'nav-btn nav-next';
+  } else if (S.card === 10) {
+    back.style.display = '';
+    back.textContent = t('back');
+    next.textContent = t('submit');
+    next.className = 'nav-btn nav-submit';
+  } else {
+    back.style.display = S.card > 1 ? '' : 'none';
+    back.textContent = t('back');
+    next.textContent = t('next');
+    next.className = 'nav-btn nav-next';
+  }
+}
+
+function updateSwipeHint() {
+  const sh = document.getElementById('swipe-hint');
+  sh.style.display = (S.card === 0 || S.card === 11) ? 'none' : '';
+  sh.textContent = t('swipe');
+}
+
+// ═══════════════════════════════════════════════
+//  VALIDATION
+// ═══════════════════════════════════════════════
+function saveTextInputs() {
+  if (S.card === 9) {
+    const ta = document.getElementById('q9-ta');
+    if (ta) S.ans.q9 = ta.value.trim();
+  }
+  if (S.card === 10) {
+    const n = document.getElementById('inp-name');
+    const e = document.getElementById('inp-email');
+    const p = document.getElementById('inp-phone');
+    if (n) S.ans.cName  = n.value.trim();
+    if (e) S.ans.cEmail = e.value.trim();
+    if (p) S.ans.cPhone = p.value.trim();
+  }
+}
+
+function validate() {
+  const c = S.card;
+  if (c === 1) return S.ans.q1.length > 0;
+  if (c === 2) return S.ans.q2 !== '';
+  if (c === 3) return Object.keys(S.ans.q3).length === 3;
+  if (c === 4) return Object.keys(S.ans.q4).length === 3;
+  if (c === 5) return Object.keys(S.ans.q5).length === 3;
+  if (c === 6) return S.ans.q6 !== '';
+  if (c === 8) return S.ans.q8 !== '';
+  return true; // Q7, Q9, Q10 are optional
+}
+
+function showError() {
+  const err = document.getElementById('err-msg');
+  if (err) {
+    err.textContent = t('errRequired');
+    err.classList.add('show');
+  }
+  CARD.classList.remove('shake');
+  void CARD.offsetWidth;
+  CARD.classList.add('shake');
+  CARD.addEventListener('animationend', () => CARD.classList.remove('shake'), { once: true });
+}
+
+// ═══════════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════════
+function goNext() {
+  if (S.busy) return;
+  saveTextInputs();
+
+  if (S.card === 10) { submitSurvey(); return; }
+
+  if (S.card >= 1 && !validate()) { showError(); return; }
+
+  S.card++;
+  renderCard(S.card, 'forward');
+  updateProgress();
+  updateNav();
+  updateSwipeHint();
+  window.scrollTo(0, 0);
+}
+
+function goBack() {
+  if (S.busy || S.card <= 1) return;
+  saveTextInputs();
+  S.card--;
+  renderCard(S.card, 'back');
+  updateProgress();
+  updateNav();
+  updateSwipeHint();
+  window.scrollTo(0, 0);
+}
+
+// ═══════════════════════════════════════════════
+//  TOUCH / SWIPE
+// ═══════════════════════════════════════════════
+let tx0 = 0, ty0 = 0;
+const wrap = document.getElementById('card-wrap');
+wrap.addEventListener('touchstart', e => {
+  tx0 = e.changedTouches[0].clientX;
+  ty0 = e.changedTouches[0].clientY;
+}, { passive: true });
+wrap.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - tx0;
+  const dy = e.changedTouches[0].clientY - ty0;
+  if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 55) {
+    if (dx < 0) goNext();
+    else goBack();
+  }
+}, { passive: true });
+
+// ═══════════════════════════════════════════════
+//  SUPABASE SUBMIT
+// ═══════════════════════════════════════════════
+async function submitSurvey() {
+  S.busy = true;
+  const overlay = document.getElementById('overlay');
+  document.getElementById('overlay-txt').textContent = t('loading');
+  overlay.classList.add('show');
+
+  const scaleMap = { '1':'Not At All Likely','2':'Unlikely','3':'Neutral','4':'Somewhat Likely','5':'Extremely Likely' };
+  const q1Labels = t('q1o');
+  const q2Labels = t('q2o');
+  const q6Labels = t('q6o');
+  const q7Labels = t('q7o');
+  const q8Labels = t('q8o');
+
+  const payload = {
+    grade_levels:          S.ans.q1.map(v => q1Labels[parseInt(v)]),
+    num_children:          q2Labels[parseInt(S.ans.q2)] || '',
+    package_a_ratings: { [t('pkgATags')[0]]: scaleMap[S.ans.q3[0]], [t('pkgATags')[1]]: scaleMap[S.ans.q3[1]], [t('pkgATags')[2]]: scaleMap[S.ans.q3[2]] },
+    package_b_ratings: { [t('pkgBTags')[0]]: scaleMap[S.ans.q4[0]], [t('pkgBTags')[1]]: scaleMap[S.ans.q4[1]], [t('pkgBTags')[2]]: scaleMap[S.ans.q4[2]] },
+    package_c_ratings: { [t('pkgCTags')[0]]: scaleMap[S.ans.q5[0]], [t('pkgCTags')[1]]: scaleMap[S.ans.q5[1]], [t('pkgCTags')[2]]: scaleMap[S.ans.q5[2]] },
+    bundle_preference:     q6Labels[parseInt(S.ans.q6)] || '',
+    custom_activities:     S.ans.q7.map(v => q7Labels[parseInt(v)]),
+    sibling_discount:      q8Labels[parseInt(S.ans.q8)] || '',
+    comments:              S.ans.q9,
+    contact_name:          S.ans.cName,
+    contact_email:         S.ans.cEmail,
+    contact_phone:         S.ans.cPhone,
+    survey_language:       S.lang
+  };
+
+  let success = false;
+
+  if (sb) {
+    try {
+      const { error } = await sb.from('survey_responses').insert([payload]);
+      if (error) throw error;
+      success = true;
+    } catch (err) {
+      console.error('Supabase error:', err);
+    }
+  } else {
+    // Demo mode — log to console when Supabase not configured
+    console.log('Survey response (Supabase not configured):', payload);
+    success = true;
+  }
+
+  overlay.classList.remove('show');
+  S.busy = false;
+
+  if (success) {
+    S.card = 11;
+    renderCard(11, 'forward');
+    updateProgress();
+    updateNav();
+    updateSwipeHint();
+    launchConfetti();
+  } else {
+    const err = document.getElementById('err-msg');
+    if (err) { err.textContent = t('errSubmit'); err.classList.add('show'); }
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  CONFETTI
+// ═══════════════════════════════════════════════
+function launchConfetti() {
+  const wrap = document.getElementById('confetti-wrap');
+  wrap.innerHTML = '';
+  const colors = ['#1A4FBF','#FF6B6B','#4ECDC4','#FFD93D','#26de81','#FF9B9B','#3B72D9'];
+  for (let i = 0; i < 80; i++) {
+    const el = document.createElement('div');
+    el.className = 'conf';
+    el.style.left = Math.random() * 100 + 'vw';
+    el.style.top  = '-20px';
+    el.style.background = colors[Math.floor(Math.random() * colors.length)];
+    el.style.width  = (8 + Math.random() * 8) + 'px';
+    el.style.height = (8 + Math.random() * 8) + 'px';
+    el.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+    el.style.animationDuration = (1.5 + Math.random() * 2) + 's';
+    el.style.animationDelay   = (Math.random() * 0.8) + 's';
+    wrap.appendChild(el);
+    el.addEventListener('animationend', () => el.remove());
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════
+renderCard(0, 'none');
+updateProgress();
+updateNav();
+updateSwipeHint();
+</script>
+</body>
+</html>
